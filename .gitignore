@@ -1,0 +1,15 @@
+# binaries
+bin/
+*.exe
+*.out
+
+# build
+/dist/
+/build/
+
+# IDE
+.vscode/
+.idea/
+
+# test
+*.test
