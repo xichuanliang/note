@@ -74,3 +74,22 @@ devices 参数，调用 nvidia-container-cli prestart，nvidia-container-cli 。
 docker–> dockerd --> containerd --> containerd-shim–> nvidia-container-runtime -
 > nvidia-container-runtime-hook --> libnvidia-container --> runc – > container
 process
+
+
+
+### 整体流程
+1. device plugin上报节点上的gpu信息
+2. 用户创建pod，在resources.request中申请GPU，Scheduler根据各节点GPU资源情况，将pod调度到一个有足够GPU的节点
+3. Device plugin根据pod中申请的GPU资源，为容器添加NVIDIA_VISIBLE_DEVICES环境变量（例如：NVIDIA_VISIBLE_DEVICES=GPU-03f69c50-207a-2038-9b45-23cac89cb67d）
+4. docker / containerd 启动容器
+   1. 由于配置了 nvidia-container-runtime,因此会使用 nvidia-container-runtime 来创建容器
+   2. nvidia-container-runtime 额外做了一件事：将 nvidia-container-runtime-hook 作为 prestart hook 添加到容器 spec 中，然后就将容器 spec 信息往后传给 runC 了。
+   3. runC 创建容器前会调用 prestart hook，其中就包括了上一步添加的 nvidia-container-runtime-hook，该 hook 主要做两件事：
+      1. 从容器 Spec 的 mounts 或者 env 中解析 GPU 信息
+      2. 调用 nvidia-container-cli 命令，将 NVIDIA 的 GPU Driver、CUDA Driver 等库文件挂载进容器，保证容器内可以使用被指定的 GPU以及对应能力
+核心就是两个部分：
+1. device plugin 根据 GPU 资源申请为容器添加 NVIDIA_VISIBLE_DEVICES环境变量
+2. nvidia-container-toolkit 则是根据 NVIDIA_VISIBLE_DEVICES环境变量将 GPU、驱动等相关文件挂载到容器里
+
+### 为什么 Pod 明明没有申请 GPU，启动后也能看到所有 GPU？
+这是因为 nvidia-container-toolkit 中存在特殊逻辑，没有设置 NVIDIA_VISIBLE_DEVICES环境变量，也没通过其他方式解析到 device 并且还是一个 legacy image，那么默认会返回all，即：NVIDIA_VISIBLE_DEVICES=all ，因此该 Pod 能看到全部 GPU
