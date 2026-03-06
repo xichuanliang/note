@@ -93,3 +93,6 @@ process
 
 ### 为什么 Pod 明明没有申请 GPU，启动后也能看到所有 GPU？
 这是因为 nvidia-container-toolkit 中存在特殊逻辑，没有设置 NVIDIA_VISIBLE_DEVICES环境变量，也没通过其他方式解析到 device 并且还是一个 legacy image，那么默认会返回all，即：NVIDIA_VISIBLE_DEVICES=all ，因此该 Pod 能看到全部 GPU
+
+
+https://www.cnblogs.com/KubeExplorer/p/18624112
